@@ -417,6 +417,7 @@ class MainWindow(onlineWindow):
         self.showPeackItem(False)
         self.peakItems_main.clear()
         self.peakItems_part.clear()
+        self.tableWidget_peak.clear()
         # 对于重点特征峰
         for peakKey in Peak.keys():
             for peakWave in Peak.get(peakKey,[]):
@@ -428,6 +429,10 @@ class MainWindow(onlineWindow):
                     text_part = pg.TextItem("{}({:.2f}nm,{:.2%})".format(peakKey,*peakPoint),angle=90,color=pg.mkColor("k"))
                     text_part.setPos(*peakPoint)
                     self.peakItems_part.append(text_part)
+                    if peakKey == "U*":
+                        peakRange = findPeakRange(self.measureData,peakPoint[0])
+                        peakArea = calculateArea(self.measureData.loc[peakRange[0]:peakRange[1]])
+                        self.tableWidget_peak.addPeakInfo(peakKey,peakPoint[0],peakArea/self.allArea)
 
     # 辅助函数：重新设置zoomBar位置
     def resetZoomBarSet(self):
@@ -449,8 +454,7 @@ class MainWindow(onlineWindow):
         # 4.归一化
         self.measureData = countTranslateTontensityI(data)
         # 5.计算谱面积
-        area = calculateArea(self.measureData)
-        self.label_spectrumArea.setText("{:.7f}".format(area))
+        self.allArea = calculateArea(self.measureData)
 
 
 

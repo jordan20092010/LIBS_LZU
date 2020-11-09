@@ -83,6 +83,14 @@ def findCharacteristicPeaf(peak,waveLength: np.array,sigma: float = 0.01):
 
 # 寻找目标波长范围内的峰
 def findPeak(peak, data: pd.DataFrame,sigma: float = 0.01, threshold: float = 0.):
+    '''
+
+    :param peak:
+    :param data:
+    :param sigma:
+    :param threshold:
+    :return: tuple ->(peakWave,peakIntensity)
+    '''
     waveLength = data[Index[0]].values
     check: np.array = np.abs(waveLength - peak) < sigma
     # 检查目标附近是否有数据
@@ -108,6 +116,42 @@ def moveWaveLength(data: pd.DataFrame,moveToRigh: float) -> pd.DataFrame:
     d.loc[:,Index[1]] = yData
     return d
 
+# 寻找峰范围
+def findPeakRange(data: pd.DataFrame,peakWave: float) -> tuple:
+    '''
+
+    :param data:
+    :param peakWave:
+    :return: tuple->(leftBorderIndex,rightBorderIndex)
+    '''
+    _peak = data.loc[data[Index[0]]==peakWave]
+    peakIndex = _peak.index[0]
+    peakValues =data[Index[1]][peakIndex]
+    # 寻找正向界限
+    peakUpIndex = peakIndex+1
+    peakUpValues = data[Index[1]][peakUpIndex]
+    tmp = peakValues
+    while peakUpValues < tmp:
+        if peakUpIndex == data.shape[0]:
+            break
+        peakUpIndex += 1
+        tmp = peakUpValues
+        peakUpValues = data[Index[1]][peakUpIndex]
+    # 寻找反向界限
+    peakDownIndex = peakIndex - 1
+    peakDownValues = data[Index[1]][peakDownIndex]
+    tmp = peakValues
+    while peakDownValues < tmp:
+        if peakDownIndex == -1:
+            break
+        peakDownIndex -= 1
+        tmp = peakDownValues
+        peakDownValues = data[Index[1]][peakDownIndex]
+    if peakUpIndex - peakDownIndex == 2:
+        return (peakDownIndex,peakUpIndex)
+    else:
+        return (peakDownIndex,peakUpIndex)
+
 # 求光谱面积
 def calculateArea(data: pd.DataFrame):
     xData = data[Index[0]].values
@@ -119,11 +163,18 @@ def calculateArea(data: pd.DataFrame):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    measure = pd.read_csv("../data/低精度.txt",sep="\s+")
+    measure = pd.read_csv("../data/高精度1.txt",sep="\s+")
     measure1 = reduceNoise(measure,0.6)
     measure2 = backgroundSubraction(measure1)
     measure3 = replaceZeroFromThreshold(measure2,0.)
     measure4 = countTranslateTontensityI(measure3)
-    print(calculateArea(measure4))
+    i = 0
+    for p in Peak.get("U*"):
+        peak = findPeak(p, measure4, threshold=0.0001)
+        if peak != None:
+            peakRange = findPeakRange(measure4,peak[0])
+            print(peakRange)
+            i += calculateArea(measure4.loc[peakRange[0]:peakRange[1]]) / calculateArea(measure4)
+    print(i)
     plt.plot(measure4[Index[0]].values,measure4[Index[1]].values)
     plt.show()
