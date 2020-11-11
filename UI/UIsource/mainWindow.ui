@@ -681,6 +681,12 @@
           </item>
           <item>
            <widget class="QGroupBox" name="groupBox_5">
+            <property name="maximumSize">
+             <size>
+              <width>300</width>
+              <height>16777215</height>
+             </size>
+            </property>
             <property name="title">
              <string>characteristic peak and peak area</string>
             </property>

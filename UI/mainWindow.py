@@ -300,6 +300,7 @@ class Ui_MainWindow(object):
         self.verticalLayout_7.addLayout(self.horizontalLayout_10)
         self.verticalLayout_6.addWidget(self.groupBox_4)
         self.groupBox_5 = QtWidgets.QGroupBox(self.tab_2)
+        self.groupBox_5.setMaximumSize(QtCore.QSize(300, 16777215))
         self.groupBox_5.setObjectName("groupBox_5")
         self.verticalLayout_8 = QtWidgets.QVBoxLayout(self.groupBox_5)
         self.verticalLayout_8.setObjectName("verticalLayout_8")
