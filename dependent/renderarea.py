@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
+from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from dependent.avaspec import *
-from dependent import globals
-
+from avaspec import *
+import globals
 
 class RenderArea(QWidget):
     points = QPolygonF(4096)
@@ -45,7 +45,7 @@ class RenderArea(QWidget):
            self.points.append(QPointF(float(x), float(65536.0 - globals.spectraldata[x])))
            #self.points.append(QPointF(float(x), float(globals.spectraldata[x])))
            x += 1
-        painter.scale(self.width() / globals.pixels, self.height() / 65536.0)
+        painter.scale(self.width()/globals.pixels, self.height()/65536.0)
         painter.drawPolyline(self.points)
         painter.setPen(self.palette().dark().color()) 
         painter.setBrush(Qt.NoBrush)

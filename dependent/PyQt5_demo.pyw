@@ -1,10 +1,14 @@
 ﻿#!/usr/bin/env python3
+import os
+import platform
+import sys
 import time
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from dependent.avaspec import *
-from dependent import globals
-from UI import form1
-
+from avaspec import *
+import globals
+import form1
 
 class MainWindow(QMainWindow, form1.Ui_MainWindow):
     newdata = pyqtSignal()
@@ -20,7 +24,8 @@ class MainWindow(QMainWindow, form1.Ui_MainWindow):
 #       do not use explicit connect together with the on_ notation, or you will get
 #       two signals instead of one!
         self.newdata.connect(self.handle_newdata)
-   
+        self.pl = self.widget.plot()
+
     @pyqtSlot()
 #   if you leave out the @pyqtSlot() line, you will also get an extra signal!
 #   so you might even get three!
@@ -28,6 +33,7 @@ class MainWindow(QMainWindow, form1.Ui_MainWindow):
         ret = AVS_Init(0)    
         # QMessageBox.information(self,"Info","AVS_Init returned:  {0:d}".format(ret))
         ret = AVS_GetNrOfDevices()
+        print(ret)
         # QMessageBox.information(self,"Info","AVS_GetNrOfDevices returned:  {0:d}".format(ret))
         req = 0
         mylist = AvsIdentityType * 1
@@ -40,13 +46,14 @@ class MainWindow(QMainWindow, form1.Ui_MainWindow):
         reqsize = 0
         ret = AVS_GetParameter(globals.dev_handle, 63484, reqsize, devcon)
         globals.pixels = ret[1].m_Detector_m_NrPixels
-        ret = AVS_GetLambda(globals.dev_handle, globals.wavelength)
+        ret = AVS_GetLambda(globals.dev_handle,globals.wavelength)
         x = 0
         while (x < globals.pixels): # 0 through 2047
             globals.wavelength[x] = ret[x]
             x += 1
         self.StartMeasBtn.setEnabled(True)
         self.VersionBtn.setEnabled(True)
+        #print(globals.wavelength)
         return
 
     @pyqtSlot()
@@ -127,14 +134,16 @@ class MainWindow(QMainWindow, form1.Ui_MainWindow):
     @pyqtSlot()
     def handle_newdata(self):
         timestamp = 0
-        ret = AVS_GetScopeData(globals.dev_handle, timestamp, globals.spectraldata)
+        ret = AVS_GetScopeData(globals.dev_handle, timestamp, globals.spectraldata )
         timestamp = ret[0]
         x = 0
         while (x < globals.pixels): # 0 through 2047
             globals.spectraldata[x] = ret[1][x]
             x += 1
             # QMessageBox.information(self,"Info","Received data")
-        self.plot.update()
+        y = globals.spectraldata
+        x = globals.wavelength
+        self.pl.setData(x, y)
         return
 
 def main():

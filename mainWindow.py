@@ -6,27 +6,114 @@ import numpy as np
 import pyqtgraph as pg
 from PyQt5.QtWidgets import *
 from dependent.avaspec import *
-from dependent import globals
+import globals
 from dependent.Analyse import *
 import os
 from UI import mainWindow
+import os
+import platform
+import sys
+import time
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+#from avaspec import *
+import globals
+#import form1
+import numpy as np
+import pandas as pd
+import os,gc
+#import serial.tools.list_ports as sl
+from PyQt5.QtCore import QObject,pyqtSignal
+#import serial,time,re,struct,threading
+import math
+#from portLink import *
+import time
+from dependent.dialog import InputDailog
+
 
 
 class onlineWindow(QMainWindow, mainWindow.Ui_MainWindow):
     newdata = pyqtSignal()
 
-    def __init__(self,*args):
-        super(onlineWindow, self).__init__(*args)
+    def __init__(self, parent=None):
+        QMainWindow.__init__(self, parent)
         self.setupUi(self)
         self.IntTimeEdt.setText("{:3.1f}".format(5.0))
-        self.NumAvgEdt.setText("{0:d}".format(1))
-        self.NumMeasEdt.setText("{0:d}".format(1))
+        self.NumAvgEdt.setText("{0:d}".format(5))
+        self.NumMeasEdt.setText("{0:d}".format(20))
         self.StartMeasBtn.setEnabled(False)
         self.VersionBtn.setEnabled(False)
+        self.onlineDataStorage = []
         #       self.OpenCommBtn.clicked.connect(self.on_OpenCommBtn_clicked)
         #       do not use explicit connect together with the on_ notation, or you will get
         #       two signals instead of one!
         self.newdata.connect(self.handle_newdata)
+        self.plotInit()
+
+
+    def plotInit(self):
+        # 初始化上下两个图像
+        self.plot.setBackground("w")
+        self.mainPlot_online: pg.PlotItem = self.plot.addPlot(title="Libs spectrum", bottom="wave length(nm)",
+                                                               left="intensity")
+        self.mainPlot_online.showGrid(x=True, y=True)
+        self.plot.nextRow()
+        self.partPlot_online: pg.PlotItem = self.plot.addPlot(bottom="wave length(nm)", left="intensity")
+        self.partPlot_online.showGrid(x=True, y=True)
+
+        # 初始化测量数据
+        self.measureItem_main_online = pg.PlotDataItem()
+        self.mainPlot_online.addDataItem(self.measureItem_main_online)
+        self.measureItem_part_online = pg.PlotDataItem()
+        self.partPlot_online.addItem(self.measureItem_part_online)
+        # 初始化ZoomBar
+        self.zoomBar_online = pg.LinearRegionItem([0, 100])
+        self.zoomBar_online.setZValue(-10)
+        self.mainPlot_online.addItem(self.zoomBar_online)
+        # 连接动作
+        self.zoomBar_online.sigRegionChanged.connect(self.zoomBarOnlineChange_event)
+        self.partPlot_online.sigXRangeChanged.connect(self.partPlotOnlineRegionChange_event)
+
+    @pyqtSlot()
+    # zoombar_online: 当zoombar改变时
+    def zoomBarOnlineChange_event(self):
+        range = self.zoomBar_online.getRegion()
+        self.partPlot_online.setXRange(*range, padding=0)
+
+    @pyqtSlot()
+    # zoomBar_online:当partPlot范围改变时
+    def partPlotOnlineRegionChange_event(self):
+        range = self.partPlot_online.getViewBox().viewRange()[0]
+        self.zoomBar_online.setRegion(range)
+
+
+    @pyqtSlot()
+    # 添加额外峰
+    def on_pushButton_input_online_clicked(self):
+        choose, result = InputDailog.openDialog()
+        if choose:
+            Peak["k"] = [result]
+            #print(Peak)
+
+
+    @pyqtSlot()
+    # 在线数据导出
+    def on_pushButton_output_online_clicked(self):
+        outPath,fileType = QFileDialog.getSaveFileName(self,
+                                    "文件保存",
+                                    os.getcwd(), # 起始路径
+                                    "Excel (*.xlsx);;CSV (*.txt)")
+        print(outPath,"\n", fileType)
+        if outPath != "":
+            outPath = outPath.split(".")
+            outData = pd.DataFrame({Index[0]: globals.wavelength, Index[1]: globals.spectraldata})
+            if fileType == "Excel (*.xlsx)":
+                outData.to_excel(outPath[0]+".xlsx")
+            elif fileType == "CSV (*.txt)":
+                outData.to_csv(outPath[0]+".txt")
+        else:
+            print("cancel")
 
     @pyqtSlot()
     #   if you leave out the @pyqtSlot() line, you will also get an extra signal!
@@ -35,6 +122,7 @@ class onlineWindow(QMainWindow, mainWindow.Ui_MainWindow):
         ret = AVS_Init(0)
         # QMessageBox.information(self,"Info","AVS_Init returned:  {0:d}".format(ret))
         ret = AVS_GetNrOfDevices()
+        print(ret)
         # QMessageBox.information(self,"Info","AVS_GetNrOfDevices returned:  {0:d}".format(ret))
         req = 0
         mylist = AvsIdentityType * 1
@@ -54,11 +142,15 @@ class onlineWindow(QMainWindow, mainWindow.Ui_MainWindow):
             x += 1
         self.StartMeasBtn.setEnabled(True)
         self.VersionBtn.setEnabled(True)
+        print('globals.wavelength',globals.wavelength)
         return
 
     @pyqtSlot()
     def on_CloseCommBtn_clicked(self):
-        callbackclass.callback(self, 0, 0)
+        # callbackclass.callback(self, 0, 0)
+        # print('close')
+        # l_Res = AVS_Deactivate(globals.dev_handle)
+        AVS_Done()
         return
 
     @pyqtSlot()
@@ -78,6 +170,7 @@ class onlineWindow(QMainWindow, mainWindow.Ui_MainWindow):
 
     @pyqtSlot()
     def on_StartMeasBtn_clicked(self):
+        start = time.time()
         ret = AVS_UseHighResAdc(globals.dev_handle, True)
         measconfig = MeasConfigType
         measconfig.m_StartPixel = 0
@@ -116,6 +209,20 @@ class onlineWindow(QMainWindow, mainWindow.Ui_MainWindow):
             if dataready == True:
                 scans = scans + 1
                 self.newdata.emit()
+                print(scans)
+        globacczong = np.array(globals.spectraldata)
+        glocheng=np.array(globals.wavelength)
+        globals.spectraldata=np.array(globals.spectraldata)/nummeas
+        _temp = pd.DataFrame({Index[0]: globals.wavelength, Index[1]: globals.spectraldata})
+        _temp = reduceNoise(_temp, 0.01)
+        _temp = replaceZeroFromThreshold(_temp, 0.01)
+        y = _temp[Index[0]].values
+        x = _temp[Index[1]].values
+        self.measureItem_main_online.setData(x=y,y=x,pen="k")
+        self.measureItem_part_online.setData(x=y,y=x,pen="k")
+        self.onlinePeakUpdata(_temp)
+        used = (time.time() - start)
+        print('time used:', used)
         return
 
     @pyqtSlot()
@@ -123,26 +230,32 @@ class onlineWindow(QMainWindow, mainWindow.Ui_MainWindow):
         ret = AVS_StopMeasure(globals.dev_handle)
         return
 
-    # def nativeEvent(self, eventType, message):
-    #    msg = ctypes.wintypes.MSG.from_address(message.__int__())
-    #    if eventType == "windows_generic_MSG":
-    #        if msg.message == WM_MEAS_READY:
-    #            # print("Message Received!")
-    #            self.newdata.emit()
-    #    return False, 0
-
     @pyqtSlot()
     def handle_newdata(self):
         timestamp = 0
         ret = AVS_GetScopeData(globals.dev_handle, timestamp, globals.spectraldata)
+        # used = (time.perf_counter() - start)
+        # print('time:', used)
         timestamp = ret[0]
         x = 0
         while (x < globals.pixels):  # 0 through 2047
-            globals.spectraldata[x] = ret[1][x]
+            globals.spectraldata[x] += ret[1][x]
             x += 1
             # QMessageBox.information(self,"Info","Received data")
-        self.plot.update()
         return
+
+
+    def onlinePeakUpdata(self,data):
+        self.tableWidget_peak_online.clear()
+        # 对于重点特征峰
+        peakList = Peak.get("U*",[])
+        for peakWave in peakList:
+            peakPoint = findPeak(peakWave, data, threshold=100)
+            if peakPoint is not None:
+                peakSite = data.loc[data[Index[0]] == peakPoint[0]]
+                self.tableWidget_peak.addPeakInfo("U*", peakPoint[0], peakSite[Index[1]])
+        #self.measureItem_part_online.setData(x=peakPoint[0], y=peakSite[Index[1]], pen="k")
+
 
 class MainWindow(onlineWindow):
     def __init__(self,*args):
@@ -150,31 +263,6 @@ class MainWindow(onlineWindow):
         self.setMore()
         self.setEvent()
 
-    #=============处理在线部分的按钮事件报错=============
-    @pyqtSlot()
-    def on_OpenCommBtn_clicked(self):
-        try:
-            super(MainWindow, self).on_OpenCommBtn_clicked()
-        except:
-            from traceback import print_exc
-            print_exc()
-            QMessageBox.information(self,"information","The device doesn't seem to be properly connected.")
-
-    @pyqtSlot()
-    def on_CloseCommBtn_clicked(self):
-        try:
-            super(MainWindow, self).on_CloseCommBtn_clicked()
-        except:
-            QMessageBox.information(self,"information","The device doesn't seem to be properly connected.")
-
-    @pyqtSlot()
-    def on_StopMeasBtn_clicked(self):
-        try:
-            super(MainWindow, self).on_StopMeasBtn_clicked()
-        except:
-            QMessageBox.information(self,"information","The device doesn't seem to be properly connected.")
-
-    #=============离线模式部分=============
     def setMore(self):
         self.pushButton_asdColor.setColor(pg.mkColor("r"))
         self.pushButton_mearsureColor.setColor(pg.mkColor("b"))
@@ -405,7 +493,6 @@ class MainWindow(onlineWindow):
         self.zoomBar.setZValue(-10)
         self.mainPlot.addItem(self.zoomBar)
 
-    # 辅助函数：初始化特征峰部件
     def initializePeakItem(self):
         self.peakItems_main = []     #由元组(textItem)组成
         self.peakItems_part = []     #由元组(textItem)组成
@@ -426,13 +513,22 @@ class MainWindow(onlineWindow):
                     text_main = pg.TextItem("{}".format(peakKey),angle=0,color=pg.mkColor("k"))
                     text_main.setPos(*peakPoint)
                     self.peakItems_main.append(text_main)
-                    text_part = pg.TextItem("{}({:.2f}nm,{:.2%})".format(peakKey,*peakPoint),angle=90,color=pg.mkColor("k"))
+                    text_part = pg.TextItem("{}({:.2f}nm)".format(peakKey, peakPoint[0]), angle=90,color=pg.mkColor("k"))
+                    #text_part = pg.TextItem("{}({:.2f}nm,{:.2%})".format(peakKey,*peakPoint),angle=90,color=pg.mkColor("k"))
                     text_part.setPos(*peakPoint)
                     self.peakItems_part.append(text_part)
                     if peakKey == "U*":
-                        peakRange = findPeakRange(self.measureData,peakPoint[0])
-                        peakArea = calculateArea(self.measureData.loc[peakRange[0]:peakRange[1]])
-                        self.tableWidget_peak.addPeakInfo(peakKey,peakPoint[0],peakArea/self.allArea)
+                        # peakRange = findPeakRange(self.measureData,peakPoint[0])
+                        # peakArea = calculateArea(self.measureData.loc[peakRange[0]:peakRange[1]])
+                        # print(peakArea,self.countSum)
+                        peakSite = self.measureData.loc[self.measureData[Index[0]]==peakPoint[0]]
+                        self.tableWidget_peak.addPeakInfo(peakKey,peakPoint[0],peakSite[Index[1]]*self.countSum)
+                    if peakKey == "k":
+                        # peakRange = findPeakRange(self.measureData,peakPoint[0])
+                        # peakArea = calculateArea(self.measureData.loc[peakRange[0]:peakRange[1]])
+                        # print(peakArea,self.countSum)
+                        peakSite = self.measureData.loc[self.measureData[Index[0]] == peakPoint[0]]
+                        self.tableWidget_peak.addPeakInfo(peakKey, peakPoint[0], peakSite[Index[1]] * self.countSum)
 
     # 辅助函数：重新设置zoomBar位置
     def resetZoomBarSet(self):
@@ -452,12 +548,11 @@ class MainWindow(onlineWindow):
         # 3.小于零的值置零
         data = replaceZeroFromThreshold(data, 0.)
         # 4.归一化
-        self.measureData = countTranslateTontensityI(data)
+        yData = data[Index[1]].values
+        self.countSum = np.sum(yData)
+        self.measureData= countTranslateTontensityI(data)
         # 5.计算谱面积
         self.allArea = calculateArea(self.measureData)
-
-
-
 
 def main():
     app = QApplication(sys.argv)

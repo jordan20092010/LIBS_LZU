@@ -18,7 +18,7 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -145,6 +145,45 @@
            </widget>
           </item>
           <item>
+           <widget class="QPushButton" name="pushButton_input_online">
+            <property name="text">
+             <string>input</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_output_online">
+            <property name="text">
+             <string>output</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="peakTableWidget" name="tableWidget_peak_online">
+            <property name="maximumSize">
+             <size>
+              <width>300</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <column>
+             <property name="text">
+              <string>peak label</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>peak position</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>relative peak area</string>
+             </property>
+            </column>
+           </widget>
+          </item>
+          <item>
            <spacer name="verticalSpacer">
             <property name="orientation">
              <enum>Qt::Vertical</enum>
@@ -160,7 +199,7 @@
          </layout>
         </item>
         <item>
-         <widget class="RenderArea" name="plot" native="true">
+         <widget class="GraphicsLayoutWidget" name="plot" native="true">
           <property name="minimumSize">
            <size>
             <width>600</width>
@@ -752,12 +791,6 @@
   </widget>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>RenderArea</class>
-   <extends>QWidget</extends>
-   <header>dependent.renderarea</header>
-   <container>1</container>
-  </customwidget>
   <customwidget>
    <class>ColorButton</class>
    <extends>QPushButton</extends>

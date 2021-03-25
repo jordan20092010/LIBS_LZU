@@ -5,7 +5,8 @@ from copy import copy
 from collections.abc import Iterable
 import time
 Index = ["波长nm","计数count"]
-Peak = {"U":[367.007, 378.284, 385.464, 424.166, 434.169, 454.363, 387.103, 389.036, 405.004, 409.013, 417.159],"U*":[385.957,386.592,393.202]}
+Peak = {"U":[367.007, 378.284, 385.464, 424.166, 434.169, 454.363, 387.103, 389.036, 409.013, 417.159, 485.969, 485.809, 486.099],"U*":[460.11,460.36,460.515],"k":[]}
+
 
 # 降噪
 def reduceNoise(data: pd.DataFrame, threshold: float) -> pd.DataFrame:
@@ -52,6 +53,7 @@ def siftiongFromThreshold(data: pd.DataFrame, threshold: float) -> pd.DataFrame:
 def countTranslateTontensityI(MeasureData: pd.DataFrame) -> pd.DataFrame:
     yData = MeasureData[Index[1]].values
     CunteSum = np.sum(yData)
+    print(CunteSum)
     return pd.DataFrame({Index[0]:MeasureData[Index[0]].values,Index[1]:yData/CunteSum})
 
 # 寻找匹配峰位置
@@ -156,25 +158,35 @@ def findPeakRange(data: pd.DataFrame,peakWave: float) -> tuple:
 def calculateArea(data: pd.DataFrame):
     xData = data[Index[0]].values
     yData = data[Index[1]].values
-    xDiff = xData[1:] - xData[:-1]
-    yAverge = (yData[:-1] + yData[1:])/2
-    result = np.sum(xDiff * yAverge)
+    # xDiff = xData[1:] - xData[:-1]
+    # yAverge = (yData[:-1] + yData[1:])/2
+    # result = np.sum(xDiff * yAverge)
+    result = np.sum(xData)
     return result
 
 if __name__ == '__main__':
-    import matplotlib.pyplot as plt
+    # import matplotlib.pyplot as plt
     measure = pd.read_csv("../data/高精度1.txt",sep="\s+")
-    measure1 = reduceNoise(measure,0.6)
-    measure2 = backgroundSubraction(measure1)
-    measure3 = replaceZeroFromThreshold(measure2,0.)
-    measure4 = countTranslateTontensityI(measure3)
-    i = 0
-    for p in Peak.get("U*"):
-        peak = findPeak(p, measure4, threshold=0.0001)
-        if peak != None:
-            peakRange = findPeakRange(measure4,peak[0])
-            print(peakRange)
-            i += calculateArea(measure4.loc[peakRange[0]:peakRange[1]]) / calculateArea(measure4)
-    print(i)
-    plt.plot(measure4[Index[0]].values,measure4[Index[1]].values)
-    plt.show()
+    start = time.time()
+    for i in range(10):
+        measure1 = reduceNoise(measure,0.1)
+    print("1 step use:{:.2f}s".format(time.time() - start))
+    # for i in range(10):
+    #     measure2 = backgroundSubraction(measure1)
+    # print("2 step use:{:.2f}s".format(time.time() - start))
+    for i in range(10):
+        measure3 = replaceZeroFromThreshold(measure1,0.)
+    print("3 step use:{:.2f}s".format(time.time()-start))
+    for i in range(10):
+        measure4 = countTranslateTontensityI(measure3)
+    print("total use:{:.2f}s".format(time.time()-start))
+    # i = 0
+    # for p in Peak.get("U*"):
+    #     peak = findPeak(p, measure4, threshold=0.0001)
+    #     if peak != None:
+    #         peakRange = findPeakRange(measure4,peak[0])
+    #         print(peakRange)
+    #         i += calculateArea(measure4.loc[peakRange[0]:peakRange[1]]) / calculateArea(measure4)
+    #print(i)
+    # plt.plot(measure4[Index[0]].values,measure4[Index[1]].values)
+    # plt.show()

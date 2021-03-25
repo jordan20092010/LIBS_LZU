@@ -21,12 +21,13 @@ class peakTableWidget(QTableWidget):
         self.setItem(self.rowCount()-1,0,item_peakLabel)
         item_peakPos = QTableWidgetItem("{:.2f}".format(peakPos))
         self.setItem(self.rowCount()-1,1,item_peakPos)
-        item_peakArea = QTableWidgetItem("{:.2%}".format(rePeakArea))
+        item_peakArea = QTableWidgetItem("{}".format(int(rePeakArea)))
         self.setItem(self.rowCount()-1,2,item_peakArea)
 
     def clear(self) -> None:
         super(peakTableWidget, self).clear()
         self.setRowCount(0)
+        self.setHorizontalHeaderLabels(["peak label", "peak position", "relative peak area"])  # 设置表头
 
 class Table(QWidget):
     def __init__(self):
@@ -94,9 +95,4 @@ class Table(QWidget):
         layout.addWidget(TableWidget)
 
         self.setLayout(layout)
-if __name__ == '__main__':
-    app=QApplication(sys.argv)
-    win=peakTableWidget()
-    win.addPeakInfo("U*",369.3,0.0225)
-    win.show()
-    sys.exit(app.exec_())
+

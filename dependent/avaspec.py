@@ -1,12 +1,14 @@
-﻿import ctypes
+﻿import sys
+import ctypes
 import ctypes.wintypes
 import struct
+import globals
 from PyQt5.QtCore import *
 
 AVS_SERIAL_LEN = 10
 VERSION_LEN = 16
 USER_ID_LEN = 64
-WM_MEAS_READY = 0x401
+WM_MEAS_READY = 0x8001
 
 class AvsIdentityType(ctypes.Structure):
   _pack_ = 1
@@ -104,22 +106,29 @@ class DeviceConfigType(ctypes.Structure):
               ("m_OemData", ctypes.c_uint8 * 4096)]
 
 def AVS_Init(x):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int)
     paramflags = (1, "port",),
     AVS_Init = prototype(("AVS_Init", lib), paramflags)
     ret = AVS_Init(x) 
-    return ret 
+    return ret
+
+def AVS_Done():
+    lib = ctypes.WinDLL("avaspecx64.dll")
+    prototype = ctypes.WINFUNCTYPE(ctypes.c_int)
+    AVS_Done = prototype(("AVS_Done", lib),)
+    ret = AVS_Done()
+    return ret
 
 def AVS_GetNrOfDevices():
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int)
     AVS_GetNrOfDevices = prototype(("AVS_GetNrOfDevices", lib),)
     ret = AVS_GetNrOfDevices()
     return ret
 
 def AVS_GetList(listsize, requiredsize, IDlist):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(AvsIdentityType))
     paramflags = (1, "listsize",), (2, "requiredsize",), (2, "IDlist",),
     AVS_GetList = prototype(("AVS_GetList", lib), paramflags)
@@ -129,7 +138,7 @@ def AVS_GetList(listsize, requiredsize, IDlist):
     return ret
 
 def AVS_Activate(deviceID):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.POINTER(AvsIdentityType))
     paramflags = (1, "deviceId",),
     AVS_Activate = prototype(("AVS_Activate", lib), paramflags)
@@ -137,7 +146,7 @@ def AVS_Activate(deviceID):
     return ret
 
 def AVS_UseHighResAdc(handle, enable):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.c_bool)
     paramflags = (1, "handle",), (1, "enable",),
     AVS_UseHighResAdc = prototype(("AVS_UseHighResAdc", lib), paramflags)
@@ -145,7 +154,7 @@ def AVS_UseHighResAdc(handle, enable):
     return ret
 
 def AVS_GetVersionInfo(handle, FPGAversion, FWversion, DLLversion):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.c_char * VERSION_LEN, ctypes.c_char * VERSION_LEN, ctypes.c_char * VERSION_LEN)
     paramflags = (1, "handle",), (2, "FPGAversion",), (2, "FWversion",), (2, "DLLversion",),
     AVS_GetVersionInfo =prototype(("AVS_GetVersionInfo", lib), paramflags) 
@@ -153,7 +162,7 @@ def AVS_GetVersionInfo(handle, FPGAversion, FWversion, DLLversion):
     return ret
 
 def AVS_PrepareMeasure(handle, measconf):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     datatype = ctypes.c_byte * 41
     data = datatype()
     temp = datatype()
@@ -189,7 +198,7 @@ def AVS_PrepareMeasure(handle, measconf):
     return ret
 
 def AVS_Measure(handle, windowhandle, nummeas):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.wintypes.HWND, ctypes.c_uint16)
     paramflags = (1, "handle",), (1, "windowhandle",), (1, "nummeas"),
     AVS_Measure = prototype(("AVS_Measure", lib), paramflags)
@@ -205,18 +214,18 @@ class callbackclass(QObject):
         self.newdata.emit() # signal must be from a class !!
 
 # We have not succeeded in getting the callback to execute without problem
-# please use AVS_Measure instead using Windows messaging or polling 
+# please use AVS_Measure instead using Windows messaging or polling
 
 def AVS_MeasureCallback(handle, adres, nummeas):
     CBTYPE = ctypes.CFUNCTYPE(None, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, CBTYPE, ctypes.c_uint16)
     paramflags = (1, "handle",), (1, "adres",), (1, "nummeas"),
     AVS_MeasureCallback = prototype(("AVS_MeasureCallback", lib), paramflags)
-    ret = AVS_MeasureCallback(handle, CBTYPE(callbackclass.callback), nummeas)  # CRASHES Python
+    ret = AVS_MeasureCallback(handle, CBTYPE(callbackclass.callback), nummeas)  # CRASHES python
 
 def AVS_StopMeasure(handle):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int)
     paramflags = (1, "handle",),
     AVS_StopMeasure = prototype(("AVS_StopMeasure", lib), paramflags)
@@ -224,7 +233,7 @@ def AVS_StopMeasure(handle):
     return ret
 
 def AVS_PollScan(handle):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int)
     paramflags = (1, "handle",),
     AVS_PollScan = prototype(("AVS_PollScan", lib), paramflags)
@@ -232,7 +241,7 @@ def AVS_PollScan(handle):
     return ret
     
 def AVS_GetScopeData(handle, timelabel, spectrum):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_double * 4096))
     paramflags = (1, "handle",), (2, "timelabel",), (2, "spectrum",),
     AVS_GetScopeData = prototype(("AVS_GetScopeData", lib), paramflags)
@@ -240,7 +249,7 @@ def AVS_GetScopeData(handle, timelabel, spectrum):
     return ret
 
 def AVS_GetLambda(handle, wavelength):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_double * 4096))
     paramflags = (1, "handle",), (2, "wavelength",),
     AVS_GetLambda = prototype(("AVS_GetLambda", lib), paramflags)
@@ -248,7 +257,7 @@ def AVS_GetLambda(handle, wavelength):
     return ret
 
 def AVS_SetDigOut(handle, portId, value):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.c_uint8, ctypes.c_uint8)
     paramflags = (1, "handle",), (1, "portId",), (1, "value",),
     AVS_SetDigOut = prototype(("AVS_SetDigOut", lib), paramflags)
@@ -256,7 +265,7 @@ def AVS_SetDigOut(handle, portId, value):
     return ret
 
 def AVS_GetAnalogIn(handle, AnalogInId, AnalogIn):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.c_uint8, ctypes.POINTER(ctypes.c_float))
     paramflags = (1, "handle",), (1, "AnalogInId",), (2, "AnalogIn",),
     AVS_GetAnalogIn = prototype(("AVS_GetAnalogIn", lib), paramflags)
@@ -264,7 +273,7 @@ def AVS_GetAnalogIn(handle, AnalogInId, AnalogIn):
     return ret
 
 def AVS_GetParameter(handle, size, reqsize, deviceconfig):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     prototype = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(DeviceConfigType))
     paramflags = (1, "handle",), (1, "size",), (2, "reqsize",), (2, "deviceconfig",),
     AVS_GetParameter = prototype(("AVS_GetParameter", lib), paramflags)
@@ -272,7 +281,7 @@ def AVS_GetParameter(handle, size, reqsize, deviceconfig):
     return ret
 
 def AVS_SetParameter(handle, deviceconfig):
-    lib = ctypes.WinDLL("./dependent/avaspec.dll")
+    lib = ctypes.WinDLL("avaspecx64.dll")
     datatype = ctypes.c_byte * 63484
     data = datatype()
     temp = datatype()
